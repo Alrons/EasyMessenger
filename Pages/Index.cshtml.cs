@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace EasyMessenger.Pages
 {
@@ -12,9 +13,33 @@ namespace EasyMessenger.Pages
             _logger = logger;
         }
 
-        public void OnGet()
+        public IActionResult OnGet()
         {
+            var token = HttpContext.Request.Cookies["accessToken"];
+            if (string.IsNullOrEmpty(token))
+            {
+                return RedirectToPage("account/Login");
+            }
 
+            var handler = new JwtSecurityTokenHandler();
+            try
+            {
+                var jwtToken = handler.ReadJwtToken(token);
+
+                // Проверка срока действия токена
+                if (jwtToken.ValidTo < DateTime.UtcNow)
+                {
+                    return RedirectToPage("account/Login");
+                }
+            }
+            catch
+            {
+                return RedirectToPage("account/Login");
+            }
+
+            return Page();
         }
+
+
     }
 }

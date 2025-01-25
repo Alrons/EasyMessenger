@@ -1,6 +1,7 @@
 ﻿@page
 @model EasyMessenger.Pages.account.LoginModel
 @{
+    ViewData["Title"] = "Login";
 }
 
 <div class="container mt-5">
@@ -11,24 +12,64 @@
                     <h4>Вход</h4>
                 </div>
                 <div class="card-body">
-                    <form method="post">
-                        <div class="text-denger" asp-validation-summary="ModelOnly"></div>
+                    <form id="loginForm">
+                        <div id="errorMessage" class="text-danger"></div>
                         <div class="mb-3">
-                            <label for="username" class="form-label">Имя пользователя</label>
-                            <input asp-for="Credential.UserName" type="text" class="form-control" id="username" name="Username" placeholder="Введите имя" required>
-                            <span class="text-denger" asp-validation-for="Credential.UserName"></span>
+                            <label for="username" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="username" placeholder="Введите email" required />
                         </div>
                         <div class="mb-3">
                             <label for="password" class="form-label">Пароль</label>
-                            <input asp-for="Credential.Password" type="password" class="form-control" id="password" name="Password" placeholder="Введите пароль" required>
-                            <span class="text-denger" asp-validation-for="Credential.Password"></span>
+                            <input type="password" class="form-control" id="password" placeholder="Введите пароль" required />
                         </div>
                         <div class="d-grid">
                             <button type="submit" class="btn btn-primary">Войти</button>
                         </div>
                     </form>
+                    <p class="mt-3">
+                        <input type="button" id="getData" value="Получить данные" class="btn btn-secondary" />
+                    </p>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        var tokenKey = "accessToken";
+
+                // Обработка формы логина
+        document.getElementById("loginForm").addEventListener("submit", async e => {
+            e.preventDefault();
+
+            const email = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+
+            const response = await fetch("/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, password })
+            });
+
+            const errorMessage = document.getElementById("errorMessage");
+
+            if (response.ok) {
+                const data = await response.json();
+                sessionStorage.setItem(tokenKey, data.access_token);
+
+                // Устанавливаем токен в cookies (для бэкенда)
+                document.cookie = `accessToken=${data.access_token}; path=/`;
+
+                errorMessage.textContent = ""; // Очистить сообщение об ошибке
+                alert("Вы успешно вошли!");
+
+                // Редирект на главную страницу
+                window.location.href = "/Index";
+            } else {
+                errorMessage.textContent = "Ошибка авторизации. Проверьте данные.";
+            }
+        });
+
+    </script>
+}

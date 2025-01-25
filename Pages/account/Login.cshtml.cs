@@ -1,33 +1,14 @@
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.ComponentModel.DataAnnotations;
-using System.Net;
 
 namespace EasyMessenger.Pages.account
 {
     public class LoginModel : PageModel
     {
-        [BindProperty]
-        public Credential Credential { get; set; }
-
-        public IActionResult OnPost()
+        public void OnGet()
         {
-            if (this.Credential.UserName == "admin" && this.Credential.Password == "admin")
-            {
-                return RedirectToPage("/index"); // Добавьте return здесь
-            }
-
-            // Если аутентификация не удалась, можно вернуть ту же страницу с ошибкой
-            return Page();
+            // Метод для GET-запроса (можно использовать для подготовки данных или состояния страницы)
         }
     }
-    public class Credential
-    {
-        [Required]
-        public string UserName { get; set; }
 
-        [Required]
-        [DataType(DataType.Password)]
-        public string Password { get; set; }
-    }
 }
