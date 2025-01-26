@@ -27,18 +27,22 @@
 
 @section Scripts {
     <script>
-        document.getElementById("logoutButton").addEventListener("click", () => {
-            // Удаляем токен из cookies
-            document.cookie = "accessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+        document.getElementById("logoutButton").addEventListener("click", async () => {
+            // Отправляем запрос на сервер для завершения сессии
+            await fetch("/logout", {
+                method: "POST"
+            });
 
-            // Очистка sessionStorage (если используется)
+            // Удаляем токен на клиенте
+            document.cookie = "accessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
             sessionStorage.removeItem("accessToken");
 
-            // Перенаправление на страницу логина
+            // Перенаправляем на страницу входа
             window.location.href = "/account/Login";
         });
     </script>
 }
+
 
 
 <section class=" d-flex flex-column" style="height: 85vh; width: 1224px; margin: 0 auto;">

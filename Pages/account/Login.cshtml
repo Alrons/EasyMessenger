@@ -26,9 +26,6 @@
                             <button type="submit" class="btn btn-primary">Войти</button>
                         </div>
                     </form>
-                    <p class="mt-3">
-                        <input type="button" id="getData" value="Получить данные" class="btn btn-secondary" />
-                    </p>
                 </div>
             </div>
         </div>
@@ -37,9 +34,6 @@
 
 @section Scripts {
     <script>
-        var tokenKey = "accessToken";
-
-                // Обработка формы логина
         document.getElementById("loginForm").addEventListener("submit", async e => {
             e.preventDefault();
 
@@ -56,20 +50,12 @@
 
             if (response.ok) {
                 const data = await response.json();
-                sessionStorage.setItem(tokenKey, data.access_token);
-
-                // Устанавливаем токен в cookies (для бэкенда)
                 document.cookie = `accessToken=${data.access_token}; path=/`;
-
-                errorMessage.textContent = ""; // Очистить сообщение об ошибке
-                alert("Вы успешно вошли!");
-
-                // Редирект на главную страницу
+                errorMessage.textContent = "";
                 window.location.href = "/Index";
             } else {
                 errorMessage.textContent = "Ошибка авторизации. Проверьте данные.";
             }
         });
-
     </script>
 }

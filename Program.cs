@@ -1,54 +1,72 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using EasyMessenger;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
-using Microsoft.AspNetCore.Authorization;
-using EasyMessenger;
 
+var builder = WebApplication.CreateBuilder();
 
-// условная бд с пользователями
+// Условная база данных с пользователями
 var people = new List<Person>
- {
+{
     new Person("tom@gmail.com", "12345"),
     new Person("bob@gmail.com", "55555")
 };
 
-
-var builder = WebApplication.CreateBuilder();
-
 // Добавляем сервисы для сессии
-builder.Services.AddDistributedMemoryCache(); // Использование памяти для хранения данных сессии
+builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromMinutes(30); // Время жизни сессии
-    options.Cookie.HttpOnly = true; // Сессия доступна только через HTTP
-    options.Cookie.IsEssential = true; // Важно для работы с GDPR
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
 });
 
-// Добавляем Razor Pages
 builder.Services.AddRazorPages();
 
-// Добавляем авторизацию и аутентификацию
-builder.Services.AddAuthorization();
+// Добавляем аутентификацию с использованием JWT
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = true, // Проверка издателя токена
+            ValidateIssuer = true,
             ValidIssuer = AuthOptions.ISSUER,
-            ValidateAudience = true, // Проверка потребителя токена
+            ValidateAudience = true,
             ValidAudience = AuthOptions.AUDIENCE,
-            ValidateLifetime = true, // Проверка срока действия токена
+            ValidateLifetime = true,
             IssuerSigningKey = AuthOptions.GetSymmetricSecurityKey(),
-            ValidateIssuerSigningKey = true, // Проверка подписи токена
+            ValidateIssuerSigningKey = true,
+            ClockSkew = TimeSpan.Zero, // Скидываем задержку по времени
+        };
+
+        // Обработка токена из cookies (если нужно)
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                // Проверяем, есть ли токен в cookies
+                if (context.Request.Cookies.ContainsKey("accessToken"))
+                {
+                    context.Token = context.Request.Cookies["accessToken"];
+                }
+                return Task.CompletedTask;
+            },
+            OnChallenge = context =>
+            {
+                // Перенаправление на страницу логина
+                context.Response.Redirect("/account/login");
+                context.HandleResponse(); // Останавливаем дальнейшую обработку
+                return Task.CompletedTask;
+            }
         };
     });
 
+builder.Services.AddAuthorization();
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Настройка обработки ошибок в продакшене
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
@@ -59,32 +77,30 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 
-// Включаем middleware для сессий
 app.UseSession();
 
+// Включаем аутентификацию и авторизацию
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapRazorPages();
 
+// Маршрут для логина
 app.MapPost("/login", (Person loginData) =>
 {
-    // находим пользователя 
-    Person? person = people.FirstOrDefault(p => p.Email == loginData.Email && p.Password == loginData.Password);
-    // если пользователь не найден, отправляем статусный код 401
-    if (person is null) return Results.Unauthorized();
+    var person = people.FirstOrDefault(p => p.Email == loginData.Email && p.Password == loginData.Password);
+    if (person == null) return Results.Unauthorized(); // Ошибка 401, если пользователь не найден
 
     var claims = new List<Claim> { new Claim(ClaimTypes.Name, person.Email) };
-    // создаем JWT-токен
     var jwt = new JwtSecurityToken(
-            issuer: AuthOptions.ISSUER,
-            audience: AuthOptions.AUDIENCE,
-            claims: claims,
-            expires: DateTime.UtcNow.Add(TimeSpan.FromMinutes(2)),
-            signingCredentials: new SigningCredentials(AuthOptions.GetSymmetricSecurityKey(), SecurityAlgorithms.HmacSha256));
+        issuer: AuthOptions.ISSUER,
+        audience: AuthOptions.AUDIENCE,
+        claims: claims,
+        expires: DateTime.UtcNow.AddMinutes(30), // Время действия токена
+        signingCredentials: new SigningCredentials(AuthOptions.GetSymmetricSecurityKey(), SecurityAlgorithms.HmacSha256)
+    );
     var encodedJwt = new JwtSecurityTokenHandler().WriteToken(jwt);
 
-    // формируем ответ
+    // Возвращаем токен и имя пользователя
     var response = new
     {
         access_token = encodedJwt,
@@ -93,7 +109,14 @@ app.MapPost("/login", (Person loginData) =>
 
     return Results.Json(response);
 });
-app.Map("/data", [Authorize] () => new { message = "Hello World!" });
 
+// Маршрут для выхода
+app.MapPost("/logout", (HttpContext context) =>
+{
+    // Удаление куки с токеном при выходе
+    context.Response.Cookies.Delete("accessToken");
+    return Results.Ok();
+});
 
+// Запуск приложения
 app.Run();
